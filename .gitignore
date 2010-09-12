@@ -1,0 +1,7 @@
+log
+tmp
+.idea
+1
+ui_*
+qrc_*
+*.sqlite3

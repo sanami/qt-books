@@ -1,0 +1,8 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/">
+	<file>resources/fileopen.png</file>
+	<file>resources/filenew.png</file>
+	<file>resources/filesave.png</file>
+	<file>resources/app.ico</file>
+</qresource>
+</RCC>
