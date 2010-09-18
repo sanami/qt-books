@@ -18,7 +18,7 @@ class BookFinder < FinderBase
 			if File.exists?(to_win(book.file_path))
 				#Вычислить CRC32
 				if book.crc == 0
-					new_crc = calculate_crc(book.file_path)
+					new_crc = @storage.calculate_crc(book.file_path)
 					if new_crc != 0
 						book.update_attribute(:crc, new_crc)
 					end
@@ -42,7 +42,7 @@ private
 
 	##
 	# Обработать файл
-	def process_file(file_path, file_name_utf8, file_path_utf8)
+	def process_file(file_path, file_name_utf8, file_path_utf8, &gui_proc)
 		puts "BookFinder.process_file(#{file_path_utf8})"
 		entries = list_file_entries(file_path, file_name_utf8, file_path_utf8)
 
@@ -58,9 +58,9 @@ private
 			  book.title = e[:title]
 			  book.last_modified = e[:last_modified]
 			  book.size = e[:size]
-			  book.crc = e[:crc]
-			  #TODO if crc == 0 вычислить
-			  book.quick_hash = e[:quick_hash]
+			  book.crc = e[:crc] != 0 ? e[:crc] : @storage.calculate_crc(book.file_path) # Вычислить
+
+			  gui_proc.call(:add_book, book) if gui_proc
 		  end
 	  end
 	end

@@ -63,7 +63,7 @@
         <item row="1" column="0" colspan="6">
          <widget class="QTreeWidget" name="search_result">
           <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+           <enum>Qt::ActionsContextMenu</enum>
           </property>
           <property name="alternatingRowColors">
            <bool>true</bool>
@@ -212,6 +212,7 @@
     </property>
     <addaction name="action_add_folder_to_storage"/>
     <addaction name="action_update_storage"/>
+    <addaction name="action_find_duplicates"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuStorage"/>
@@ -242,6 +243,7 @@
    </attribute>
    <addaction name="action_add_folder_to_storage"/>
    <addaction name="action_update_storage"/>
+   <addaction name="action_find_duplicates"/>
   </widget>
   <action name="action_save">
    <property name="icon">
@@ -312,6 +314,16 @@
    </property>
    <property name="toolTip">
     <string>Update storage. Remove missing files. Calculate CRC</string>
+   </property>
+  </action>
+  <action name="action_find_duplicates">
+   <property name="text">
+    <string>Find Duplicates</string>
+   </property>
+  </action>
+  <action name="action_delete_files">
+   <property name="text">
+    <string>Delete files</string>
    </property>
   </action>
  </widget>

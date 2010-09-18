@@ -1,5 +1,7 @@
 require 'misc.rb'
+require 'zlib'
 require 'book.rb'
+require 'cache.rb'
 
 ##
 # Хранилище информации о книгах
@@ -19,6 +21,11 @@ class Storage
 #		ActiveRecord::Base.colorize_logging = true
 
 		Book.create_table
+		Cache.create_table
+		#Cache.add_file_name_column
+		#Cache.show_all
+
+		puts "Book.count #{Book.count}, Cache.count #{Cache.count}"
 	end
 
 	##
@@ -50,7 +57,7 @@ class Storage
 		#books = Book.find(:all, :conditions => conditions)
 		books = Book.paginate :page => page, :per_page => per_page, :conditions => conditions
 
-		@current_page = 1
+		@current_page = page
 		@current_per_page = per_page
 		@current_conditions = conditions
 
@@ -71,7 +78,7 @@ class Storage
 		end
 		books = Book.paginate :page => page, :per_page => per_page, :conditions => conditions
 
-		@current_page = 1
+		@current_page = page
 		@current_per_page = per_page
 		@current_conditions = conditions
 
@@ -108,15 +115,48 @@ class Storage
 		book.save if book.good?
 	end
 
+	##
+	# Вычислить CRC32 указанного файла, путь в UTF-8
+	def calculate_crc(file_path_utf8)
+		file_name_utf8 = File.basename(file_path_utf8)
+		file_path = to_win(file_path_utf8)
+		file_size = File.size(file_path) 
+		file_mtime = File.mtime(file_path)
+#		conditions = ["file_path = ? and size = ? and last_modified = ?",
+#		              file_path_utf8, file_size, file_mtime]
+		conditions = ["file_name = ? and size = ? and last_modified = ?",
+		              file_name_utf8, file_size, file_mtime]
+		cache = Cache.first(:conditions => conditions)
+		# Вернуть из кэша
+		return cache.crc if (cache)
+
+		crc = Zlib.crc32( open(file_path, 'rb') {|f| f.read } )
+		puts('CRC32=%x %s' % [crc, file_path_utf8])
+
+		# Добавить в кэш
+		if crc != 0
+			cache = Cache.create(:file_name => file_name_utf8, :file_path => file_path_utf8,
+			                     :last_modified => file_mtime, :size => file_size, :crc => crc,
+			                     :added_to_storage => DateTime.now)
+		end
+
+		crc
+	rescue => ex
+		save_error ex
+		0
+	end
+
 public
 	def test
-		p Book.column_names #названия столбцов
-		puts "count #{Book.find(:all).size}"
+#		p Book.column_names # Названия столбцов
 
 		# Найти все
-		find().each { |b| pp b }
+#		find().each { |b| pp b }
 		# Найти русский текст, не работает ignore case
 #	  find(['ред']).each { |b| pp b }
+
+		p Cache.column_names # Названия столбцов
+		p calculate_crc('./1/test/Основы программирования на C++ [Липпман].djvu')
 	end
 end
 

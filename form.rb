@@ -3,6 +3,7 @@ require 'ui_form.rb'
 require 'qrc_resources.rb'
 require 'storage.rb'
 require 'book_finder.rb'
+require 'duplicate_finder.rb'
 
 # Колонки дерева рузультата поиска
 COLUMN_TITLE = 0
@@ -37,6 +38,8 @@ class Form < Qt::MainWindow
 	slots 'on_action_save_as_triggered()'
 	slots 'on_action_add_folder_to_storage_triggered()'
 	slots 'on_action_update_storage_triggered()'
+	slots 'on_action_find_duplicates_triggered()'
+	slots 'on_action_delete_files_triggered()'
 	slots 'on_book_search()'
 	slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 	slots 'on_search_next_page_clicked()'
@@ -46,8 +49,10 @@ class Form < Qt::MainWindow
 		super
 		init_ui
 
+		@state = nil # Текущее состояние
 		@storage = Storage.new
 		@book_finder = BookFinder.new @storage
+	  @dup_finder = DuplicateFinder.new @storage
 
 		# Загрузить настройки
 		#load_settings
@@ -90,6 +95,8 @@ private
 		@ui.search_result.setColumnWidth(COLUMN_TITLE, 300)
 		@ui.search_result.setColumnWidth(COLUMN_FILE_PATH, 500)
 		@ui.search_result.setColumnWidth(COLUMN_TITLE_PATH, 500)
+		@ui.search_result.addAction @ui.action_delete_files
+		@ui.action_delete_files.setEnabled(false)
 
 		# Строка поиска
 		connect(@ui.search, SIGNAL('clicked()'), SLOT('on_book_search()'))
@@ -249,34 +256,98 @@ private
 		status "File error: #{File.basename file_name}"
 	end
 
+	##
+	# Инициализировать прогресс бар
+	def init_progress(dir_path)
+		# Посчитать кол-во каталогов
+		status 'Count folders'
+		@ui.progress.setMaximum 10000
+		@ui.progress.setValue(0)
+		dir_count = FinderBase.count_process_dir(dir_path) do |action, obj|
+			if action == :count_dir
+				# В obj имя каталога
+				#puts to_utf(obj)
+				@ui.progress.setValue(@ui.progress.value+1)
+			else
+			  raise "Unknown action: #{action}"
+			end
+
+			$qApp.processEvents
+		end
+
+		@ui.progress.setValue(0)
+		@ui.progress.setMaximum dir_count
+	end
+
+	##
+	# Обновить прогресс
+	def update_progress
+		@ui.progress.setValue(@ui.progress.value+1)
+	end
+
   ##
 	# Добавить все книги из каталога в базу
 	def on_action_add_folder_to_storage_triggered
 		@@last_dir ||= '.'
-		dir_path = Qt::FileDialog::getExistingDirectory(self, 'Open Directory', @@last_dir, Qt::FileDialog::ShowDirsOnly)
+		dir_path = Qt::FileDialog::getExistingDirectory(self, 'Add folder', @@last_dir, Qt::FileDialog::ShowDirsOnly)
 	  if dir_path
-		  status 'Add folder'
 		  @@last_dir = dir_path
 
-		  # Посчитать кол-во каталогов
-		  @ui.progress.setMaximum 10000
-		  @ui.progress.setValue(0)
-		  @book_finder.reset_dir_counter
-		  @book_finder.process_dir(dir_path, :count) do |dir_name|
-			  @ui.progress.setValue(@ui.progress.value+1)
+		  @state = :add
+		  @ui.action_delete_files.setEnabled(false)
+		  @ui.search_result.clear
+		  init_progress(dir_path)
+
+		  # Обработка файлов
+		  status 'Add folder'
+
+		  @book_finder.process_dir(dir_path, :list) do |action, obj|
+			  if action == :list_dir
+				  # obj - имя каталога
+				  update_progress
+			  elsif action == :add_book
+				  # obj - книга
+			    show_book(obj)
+			  else
+			    raise "Unknown action: #{action}"
+				end
+
 			  $qApp.processEvents
-			  #puts to_utf(dir_name)
 		  end
 
-		  puts "*"*77
+		  @ui.progress.reset
+		  status 'OK'
+	  end
+	end
 
-		  # Настоящая обработка файлов
-		  @ui.progress.setMaximum @book_finder.count_dir
-		  @ui.progress.setValue(0)
-		  @book_finder.process_dir(dir_path, :list) do |dir_name|
-			  @ui.progress.setValue(@ui.progress.value+1)
+	##
+	# Найти повторы файлов из базы в выбранном каталоге
+	def on_action_find_duplicates_triggered
+		@@last_dir2 ||= '.'
+		dir_path = Qt::FileDialog::getExistingDirectory(self, 'Find duplicates', @@last_dir2, Qt::FileDialog::ShowDirsOnly)
+	  if dir_path
+		  @@last_dir2 = dir_path
+
+		  @state = :duplicates
+		  @ui.action_delete_files.setEnabled(true)
+		  @ui.search_result.clear
+		  init_progress(dir_path)
+
+		  # Обработка файлов
+		  status 'Find duplicates'
+
+		  @dup_finder.process_dir(dir_path, :list) do |action, obj|
+			  if action == :list_dir
+				  # obj - имя каталога
+				  update_progress
+			  elsif action == :duplicate_found
+				  # obj - дубликат
+			    show_book(obj)
+			  else
+			    raise "Unknown action: #{action}"
+				end
+
 			  $qApp.processEvents
-			  #puts to_utf(dir_name)
 		  end
 
 		  @ui.progress.reset
@@ -338,37 +409,60 @@ private
 	# Показать результаты поиска
 	def show_search_results(books)
 		@ui.search_page.setText "#{@storage.current_page}"
+		@state = :search
+		@ui.action_delete_files.setEnabled(false)
 		@ui.search_result.clear
 		books.each do |book|
-			pp book
-			size = book.size.to_s.align_right(12)
-			size.gsub!(/(.{3})/, ' \1')
-			columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
-			it = Qt::TreeWidgetItem.new(columns)
-			#it = BookItem.new(columns)
-			it.setTextAlignment(COLUMN_SIZE, Qt::AlignRight)
-			it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
-			it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book.size))
+			#pp book
+			show_book(book)
+		end
+	end
 
-			file_item = @ui.search_result.findItems(book.file_path, Qt::MatchExactly, 3)
-			if file_item.empty?
+	##
+	# Добавить информацию об одной книге в таблицу
+	def show_book(book)
+		size = book.size.to_s.align_right(12)
+		size.gsub!(/(.{3})/, ' \1')
+		columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
+		it = Qt::TreeWidgetItem.new(columns)
+		#it = BookItem.new(columns)
+		it.setTextAlignment(COLUMN_SIZE, Qt::AlignRight)
+		it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
+		it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book.size))
+
+		file_item = @ui.search_result.findItems(book.file_path, Qt::MatchExactly, 3)
+		if file_item.empty?
+			@ui.search_result.addTopLevelItem it
+		else
+			# Файлы в архиве под одним элементов
+			parent_item = file_item.first
+			parent_item_size = parent_item.data(COLUMN_SIZE, SIZE_ROLE).toULongLong
+
+			if book.size > parent_item_size
 				@ui.search_result.addTopLevelItem it
-			else
-				# Файлы в архиве под одним элементов
-				parent_item = file_item.first
-				parent_item_size = parent_item.data(COLUMN_SIZE, SIZE_ROLE).toULongLong
-				
-				if book.size > parent_item_size
-					@ui.search_result.addTopLevelItem it
-					while parent_item.childCount > 0
-						it.addChild(parent_item.takeChild(0))
-					end
-					parent_index = @ui.search_result.indexOfTopLevelItem(parent_item)
-					@ui.search_result.takeTopLevelItem(parent_index)
-					it.addChild(parent_item)
-				else
-					parent_item.addChild it
+				while parent_item.childCount > 0
+					it.addChild(parent_item.takeChild(0))
 				end
+				parent_index = @ui.search_result.indexOfTopLevelItem(parent_item)
+				@ui.search_result.takeTopLevelItem(parent_index)
+				it.addChild(parent_item)
+			else
+				parent_item.addChild it
+			end
+		end
+	end
+
+	##
+	# Удалить файлы выбранные в таблице результатов поиска
+	def on_action_delete_files_triggered
+		if @state == :duplicates
+			until (all = @ui.search_result.selectedItems).empty?
+				it = all.first
+				file_path = it.text(COLUMN_FILE_PATH)
+				File.delete to_win(file_path)
+				puts "deleted: #{file_path}"
+				# Удалить из таблицы
+				it.dispose
 			end
 		end
 	end

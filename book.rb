@@ -14,7 +14,6 @@ class Book < ActiveRecord::Base
 				t.datetime :added_to_storage # Дата добавления в базу
 				t.integer  :size        # Размер документа
 				t.integer  :crc         # CRC32
-				t.integer  :quick_hash  # Быстрый CRC
 			end
 		end
 	rescue
