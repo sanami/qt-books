@@ -2,13 +2,15 @@ require 'misc.rb'
 require 'ui_form.rb'
 require 'qrc_resources.rb'
 require 'storage.rb'
-require 'finder.rb'
+require 'book_finder.rb'
 
 # Колонки дерева рузультата поиска
 COLUMN_TITLE = 0
 COLUMN_SIZE = 1
 COLUMN_TIME = 2
-COLUMN_FILE = 3
+COLUMN_CRC = 3
+COLUMN_FILE_PATH = 4
+COLUMN_TITLE_PATH = 5
 
 SIZE_ROLE = Qt::UserRole + 1
 
@@ -34,6 +36,7 @@ class Form < Qt::MainWindow
 	slots 'on_action_save_triggered()'
 	slots 'on_action_save_as_triggered()'
 	slots 'on_action_add_folder_to_storage_triggered()'
+	slots 'on_action_update_storage_triggered()'
 	slots 'on_book_search()'
 	slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 	slots 'on_search_next_page_clicked()'
@@ -44,7 +47,7 @@ class Form < Qt::MainWindow
 		init_ui
 
 		@storage = Storage.new
-		@finder = Finder.new @storage
+		@book_finder = BookFinder.new @storage
 
 		# Загрузить настройки
 		#load_settings
@@ -85,10 +88,22 @@ private
 
 		# Дерево результатов поиска
 		@ui.search_result.setColumnWidth(COLUMN_TITLE, 300)
+		@ui.search_result.setColumnWidth(COLUMN_FILE_PATH, 500)
+		@ui.search_result.setColumnWidth(COLUMN_TITLE_PATH, 500)
 
 		# Строка поиска
 		connect(@ui.search, SIGNAL('clicked()'), SLOT('on_book_search()'))
 	  connect(@ui.search_filter, SIGNAL('returnPressed()'), SLOT('on_book_search()'))
+
+#		statusBar.addPermanentWidget(ui.messages, 100);
+#		statusBar.addPermanentWidget(ui.newsCount);
+		statusBar.addPermanentWidget(@ui.progress)
+	end
+
+	##
+	# Сообщение в строке состояния
+	def status(msg)
+		statusBar.showMessage msg
 	end
 
 	##
@@ -192,10 +207,10 @@ private
 
 		setWindowTitle "#{file_name} - Moodle"
 		@settings.save
-		statusBar.showMessage "File loaded: #{File.basename file_name}"
+		status "File loaded: #{File.basename file_name}"
 	rescue => ex
 		save_error ex
-		statusBar.showMessage "File error: #{File.basename file_name}"
+		status "File error: #{File.basename file_name}"
 	end
 
 	##
@@ -227,48 +242,71 @@ private
 		if file_name
 			# Записать содержимое окна результата
 			open(file_name, 'wb') { |f| f.write @ui.dst.to_plain_text }
-			statusBar.showMessage "File saved: #{File.basename file_name}"
+			status "File saved: #{File.basename file_name}"
 		end
 	rescue => ex
 		save_error ex
-		statusBar.showMessage "File error: #{File.basename file_name}"
+		status "File error: #{File.basename file_name}"
 	end
 
   ##
 	# Добавить все книги из каталога в базу
 	def on_action_add_folder_to_storage_triggered
 		@@last_dir ||= '.'
-		dir = Qt::FileDialog::getExistingDirectory(self, 'Open Directory', @@last_dir, Qt::FileDialog::ShowDirsOnly)
-	  if dir
-		  @@last_dir = dir
+		dir_path = Qt::FileDialog::getExistingDirectory(self, 'Open Directory', @@last_dir, Qt::FileDialog::ShowDirsOnly)
+	  if dir_path
+		  status 'Add folder'
+		  @@last_dir = dir_path
 
 		  # Посчитать кол-во каталогов
-		  @ui.search_progress.setValue(0)
-		  @finder.reset_dir_counter
-		  @finder.process_dir(to_win(dir), :count) do |dir_name, max_count|
-			  @ui.search_progress.setMaximum max_count
-			  @ui.search_progress.setValue(@ui.search_progress.value+1)
+		  @ui.progress.setMaximum 10000
+		  @ui.progress.setValue(0)
+		  @book_finder.reset_dir_counter
+		  @book_finder.process_dir(dir_path, :count) do |dir_name|
+			  @ui.progress.setValue(@ui.progress.value+1)
 			  $qApp.processEvents
-				#puts to_utf(dir_name)
+			  #puts to_utf(dir_name)
 		  end
 
 		  puts "*"*77
 
 		  # Настоящая обработка файлов
-		  @ui.search_progress.setValue(0)
-		  @finder.process_dir(to_win(dir), :list) do |dir_name, max_count|
-			  @ui.search_progress.setMaximum max_count
-			  @ui.search_progress.setValue(@ui.search_progress.value+1)
+		  @ui.progress.setMaximum @book_finder.count_dir
+		  @ui.progress.setValue(0)
+		  @book_finder.process_dir(dir_path, :list) do |dir_name|
+			  @ui.progress.setValue(@ui.progress.value+1)
 			  $qApp.processEvents
 			  #puts to_utf(dir_name)
 		  end
 
+		  @ui.progress.reset
+		  status 'OK'
 	  end
+	end
+
+	##
+	# Обновить базу
+	def on_action_update_storage_triggered
+		status 'Update'
+		@ui.progress.setMaximum @storage.size
+		@book_finder.update_storage do |i, action, book_title|
+			@ui.progress.setValue i
+
+			columns = [i.to_s, action.to_s, book_title]
+			it = Qt::TreeWidgetItem.new(columns)
+			@ui.update_result.addTopLevelItem it
+
+			$qApp.processEvents
+		end
+		@ui.progress.reset
+		status 'OK'
 	end
 
 	##
 	# Поиск по фразе в строке поиска
 	def on_book_search
+		status 'Book search'
+
 		str = @ui.search_filter.text
 		str.gsub!(/[^\w]/, ' ')
 		patterns = str.split(/[\s]+/).select {|word| word.jlength >= @ui.search_min_word.value }
@@ -278,6 +316,8 @@ private
 		# Результаты
 		books = @storage.find(patterns)
 		show_search_results books
+
+		status 'OK'
 	end
 
 	##
@@ -297,11 +337,13 @@ private
 	##
 	# Показать результаты поиска
 	def show_search_results(books)
+		@ui.search_page.setText "#{@storage.current_page}"
 		@ui.search_result.clear
 		books.each do |book|
+			pp book
 			size = book.size.to_s.align_right(12)
 			size.gsub!(/(.{3})/, ' \1')
-			columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), book.file_path]
+			columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
 			it = Qt::TreeWidgetItem.new(columns)
 			#it = BookItem.new(columns)
 			it.setTextAlignment(COLUMN_SIZE, Qt::AlignRight)
@@ -334,7 +376,7 @@ private
   ##
 	# Открыть документ или архив
 	def on_search_result_itemDoubleClicked(it, column)
-		url = Qt::Url.new("file:///" + it.text(COLUMN_FILE));
+		url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
 		Qt::DesktopServices::openUrl(url);
 	end
 

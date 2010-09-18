@@ -60,7 +60,7 @@
         <item row="0" column="1">
          <widget class="QLineEdit" name="search_filter"/>
         </item>
-        <item row="1" column="0" colspan="5">
+        <item row="1" column="0" colspan="6">
          <widget class="QTreeWidget" name="search_result">
           <property name="contextMenuPolicy">
            <enum>Qt::CustomContextMenu</enum>
@@ -82,7 +82,7 @@
           </property>
           <column>
            <property name="text">
-            <string>Name</string>
+            <string>Title</string>
            </property>
           </column>
           <column>
@@ -97,13 +97,23 @@
           </column>
           <column>
            <property name="text">
-            <string>Path</string>
+            <string>CRC32</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>File Path</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Title Path</string>
            </property>
           </column>
          </widget>
         </item>
-        <item row="2" column="0" colspan="5">
-         <widget class="QProgressBar" name="search_progress">
+        <item row="2" column="0" colspan="6">
+         <widget class="QProgressBar" name="progress">
           <property name="value">
            <number>0</number>
           </property>
@@ -112,14 +122,14 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="4">
+        <item row="0" column="5">
          <widget class="QPushButton" name="search">
           <property name="text">
            <string>Search</string>
           </property>
          </widget>
         </item>
-        <item row="0" column="3">
+        <item row="0" column="4">
          <widget class="QToolButton" name="search_next_page">
           <property name="text">
            <string>&gt;&gt;</string>
@@ -133,12 +143,43 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="3">
+         <widget class="QLabel" name="search_page">
+          <property name="frameShadow">
+           <enum>QFrame::Sunken</enum>
+          </property>
+          <property name="text">
+           <string>0</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </widget>
       <widget class="QWidget" name="tab_2">
        <attribute name="title">
-        <string>Tab 2</string>
+        <string>Update</string>
        </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QTreeWidget" name="update_result">
+          <column>
+           <property name="text">
+            <string>Id</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Action</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>File Path</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </widget>
     </item>
@@ -169,6 +210,8 @@
     <property name="title">
      <string>Storage</string>
     </property>
+    <addaction name="action_add_folder_to_storage"/>
+    <addaction name="action_update_storage"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuStorage"/>
@@ -198,6 +241,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="action_add_folder_to_storage"/>
+   <addaction name="action_update_storage"/>
   </widget>
   <action name="action_save">
    <property name="icon">
@@ -260,6 +304,14 @@
    </property>
    <property name="toolTip">
     <string>Add folder to storage</string>
+   </property>
+  </action>
+  <action name="action_update_storage">
+   <property name="text">
+    <string>Update</string>
+   </property>
+   <property name="toolTip">
+    <string>Update storage. Remove missing files. Calculate CRC</string>
    </property>
   </action>
  </widget>
