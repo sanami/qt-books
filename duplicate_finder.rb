@@ -11,6 +11,17 @@ class DuplicateFinder < FinderBase
 
 private
 	##
+	# Обработать этот файл?
+	def can_process_file?(file_path, file_path_utf8)
+		# Пропускать файлы больше 200 mb
+		file_size = File.size(file_path) 
+		# Для файлов больше 2gb ruby 1.8 возвращает <0
+		(file_size > 0 && file_size < 200*1024*1024)
+	rescue
+		false
+	end
+
+	##
 	# Обработать файл
 	def process_file(file_path, file_name_utf8, file_path_utf8, &gui_proc)
 		puts "DuplicateFinder.process_file(#{file_path_utf8})"

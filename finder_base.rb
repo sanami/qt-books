@@ -57,9 +57,14 @@ class FinderBase
 
 protected
 	##
-	# Обработать этот файл? переопределять
+	# Обработать этот файл?
 	def can_process_file?(file_path, file_path_utf8)
-		true
+		# Пропускать файлы больше 2gb
+		file_size = File.size(file_path)
+		# Для файлов больше 2gb ruby 1.8 возвращает <0
+		(file_size > 0)
+	rescue
+		false
 	end
 
 	##
@@ -83,6 +88,10 @@ protected
 				entries += list_rar(file_path, file_name_utf8, file_path_utf8)
 			when :zip
 				entries += list_zip(file_path, file_name_utf8, file_path_utf8)
+			# Если неправильное расширение
+			#when :rar, :zip
+			#	entries += list_rar(file_path, file_name_utf8, file_path_utf8) rescue nil
+			#	entries += list_zip(file_path, file_name_utf8, file_path_utf8) rescue nil
 			else
 				entries << {:file_name => file_name_utf8, :file_path => file_path_utf8,
 				            :title_path => file_path_utf8, :title => file_name_utf8,

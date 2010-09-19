@@ -5,7 +5,7 @@ require 'storage.rb'
 require 'book_finder.rb'
 require 'duplicate_finder.rb'
 
-# Колонки дерева рузультата поиска
+# Колонки дерева результата поиска
 COLUMN_TITLE = 0
 COLUMN_SIZE = 1
 COLUMN_TIME = 2
@@ -40,8 +40,10 @@ class Form < Qt::MainWindow
 	slots 'on_action_update_storage_triggered()'
 	slots 'on_action_find_duplicates_triggered()'
 	slots 'on_action_delete_files_triggered()'
+	slots 'on_action_search_from_clipboard_triggered()'
 	slots 'on_book_search()'
 	slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
+	slots 'on_duplicates_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 	slots 'on_search_next_page_clicked()'
 	slots 'on_search_prev_page_clicked()'
 
@@ -95,8 +97,12 @@ private
 		@ui.search_result.setColumnWidth(COLUMN_TITLE, 300)
 		@ui.search_result.setColumnWidth(COLUMN_FILE_PATH, 500)
 		@ui.search_result.setColumnWidth(COLUMN_TITLE_PATH, 500)
-		@ui.search_result.addAction @ui.action_delete_files
-		@ui.action_delete_files.setEnabled(false)
+
+		# Дерево результатов поиска
+		@ui.duplicates_result.setColumnWidth(COLUMN_TITLE, 300)
+		@ui.duplicates_result.setColumnWidth(COLUMN_FILE_PATH, 500)
+		@ui.duplicates_result.setColumnWidth(COLUMN_TITLE_PATH, 500)
+		@ui.duplicates_result.addAction @ui.action_delete_files
 
 		# Строка поиска
 		connect(@ui.search, SIGNAL('clicked()'), SLOT('on_book_search()'))
@@ -105,6 +111,32 @@ private
 #		statusBar.addPermanentWidget(ui.messages, 100);
 #		statusBar.addPermanentWidget(ui.newsCount);
 		statusBar.addPermanentWidget(@ui.progress)
+
+	  init_actions
+	end
+
+	def init_actions
+		# ALT+B активизирует окно
+		#WORD wVirtualKeyCode = 0x42; //B
+		#WORD wModifiers = 0x04;//HOTKEYF_ALT;
+		#::SendMessage(winId(), WM_SETHOTKEY, MAKEWORD(wVirtualKeyCode, wModifiers), 0);
+		#Win32::SendMessage.call(winId(), 50, 0x4204, 0)
+		# winId не работает, вызывает Segmentation fault
+
+		# ESC сворачивает окно
+		a = Qt::Action.new(self)
+		a.setShortcut(Qt::KeySequence.new(Qt::Key_Escape))
+		connect(a, SIGNAL('triggered()'), SLOT('showMinimized()'))
+		addAction(a)
+
+		# CTRL+E фокус на строку поиска
+		a = Qt::Action.new(self)
+		a.setShortcut(Qt::KeySequence.new(Qt::Key_E + Qt::CTRL))
+		connect(a, SIGNAL('triggered()'), @ui.search_filter, SLOT('setFocus()'))
+		addAction(a)
+
+		# Вставка из буфера
+	  addAction(@ui.action_search_from_clipboard)
 	end
 
 	##
@@ -293,8 +325,6 @@ private
 	  if dir_path
 		  @@last_dir = dir_path
 
-		  @state = :add
-		  @ui.action_delete_files.setEnabled(false)
 		  @ui.search_result.clear
 		  init_progress(dir_path)
 
@@ -307,7 +337,7 @@ private
 				  update_progress
 			  elsif action == :add_book
 				  # obj - книга
-			    show_book(obj)
+			    show_book(@ui.search_result, obj)
 			  else
 			    raise "Unknown action: #{action}"
 				end
@@ -328,9 +358,7 @@ private
 	  if dir_path
 		  @@last_dir2 = dir_path
 
-		  @state = :duplicates
-		  @ui.action_delete_files.setEnabled(true)
-		  @ui.search_result.clear
+		  @ui.duplicates_result.clear
 		  init_progress(dir_path)
 
 		  # Обработка файлов
@@ -342,7 +370,7 @@ private
 				  update_progress
 			  elsif action == :duplicate_found
 				  # obj - дубликат
-			    show_book(obj)
+			    show_book(@ui.duplicates_result, obj)
 			  else
 			    raise "Unknown action: #{action}"
 				end
@@ -409,18 +437,16 @@ private
 	# Показать результаты поиска
 	def show_search_results(books)
 		@ui.search_page.setText "#{@storage.current_page}"
-		@state = :search
-		@ui.action_delete_files.setEnabled(false)
 		@ui.search_result.clear
 		books.each do |book|
 			#pp book
-			show_book(book)
+			show_book(@ui.search_result, book)
 		end
 	end
 
 	##
 	# Добавить информацию об одной книге в таблицу
-	def show_book(book)
+	def show_book(tree_widget, book)
 		size = book.size.to_s.align_right(12)
 		size.gsub!(/(.{3})/, ' \1')
 		columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
@@ -430,21 +456,21 @@ private
 		it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
 		it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book.size))
 
-		file_item = @ui.search_result.findItems(book.file_path, Qt::MatchExactly, 3)
+		file_item = tree_widget.findItems(book.file_path, Qt::MatchExactly, 3)
 		if file_item.empty?
-			@ui.search_result.addTopLevelItem it
+			tree_widget.addTopLevelItem it
 		else
 			# Файлы в архиве под одним элементов
 			parent_item = file_item.first
 			parent_item_size = parent_item.data(COLUMN_SIZE, SIZE_ROLE).toULongLong
 
 			if book.size > parent_item_size
-				@ui.search_result.addTopLevelItem it
+				tree_widget.addTopLevelItem it
 				while parent_item.childCount > 0
 					it.addChild(parent_item.takeChild(0))
 				end
-				parent_index = @ui.search_result.indexOfTopLevelItem(parent_item)
-				@ui.search_result.takeTopLevelItem(parent_index)
+				parent_index = tree_widget.indexOfTopLevelItem(parent_item)
+				tree_widget.takeTopLevelItem(parent_index)
 				it.addChild(parent_item)
 			else
 				parent_item.addChild it
@@ -455,16 +481,24 @@ private
 	##
 	# Удалить файлы выбранные в таблице результатов поиска
 	def on_action_delete_files_triggered
-		if @state == :duplicates
-			until (all = @ui.search_result.selectedItems).empty?
-				it = all.first
-				file_path = it.text(COLUMN_FILE_PATH)
-				File.delete to_win(file_path)
-				puts "deleted: #{file_path}"
-				# Удалить из таблицы
-				it.dispose
-			end
+		until (all = @ui.duplicates_result.selectedItems).empty?
+			it = all.first
+			file_path = it.text(COLUMN_FILE_PATH)
+			puts "deleted: #{file_path}"
+			File.delete to_win(file_path)
+			# Удалить из таблицы
+			it.dispose
 		end
+	end
+
+	##
+	# Вставить текст из буфера в строку поиска
+	def on_action_search_from_clipboard_triggered
+		@ui.search_filter.setText(Qt::Application.clipboard.text)
+		@ui.search_filter.setFocus
+
+		# Сразу делать поиск
+		on_book_search
 	end
 
   ##
@@ -474,4 +508,10 @@ private
 		Qt::DesktopServices::openUrl(url);
 	end
 
+	##
+	# Открыть документ или архив
+	def on_duplicates_result_itemDoubleClicked(it, column)
+		url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
+		Qt::DesktopServices::openUrl(url);
+	end
 end

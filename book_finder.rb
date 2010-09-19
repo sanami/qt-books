@@ -37,7 +37,12 @@ private
 	##
 	# Обработать этот файл?
 	def can_process_file?(file_path, file_path_utf8)
-		!@storage.contains? file_path_utf8
+		# Пропускать файлы больше 200 mb
+		file_size = File.size(file_path)
+		# Для файлов больше 2gb ruby 1.8 возвращает <0
+		(!@storage.contains?(file_path_utf8)) && (file_size > 0 && file_size < 200*1024*1024)
+	rescue
+		false
 	end
 
 	##

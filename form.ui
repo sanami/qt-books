@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>672</width>
-    <height>469</height>
+    <width>774</width>
+    <height>559</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -112,16 +112,6 @@
           </column>
          </widget>
         </item>
-        <item row="2" column="0" colspan="6">
-         <widget class="QProgressBar" name="progress">
-          <property name="value">
-           <number>0</number>
-          </property>
-          <property name="format">
-           <string>%v / %m</string>
-          </property>
-         </widget>
-        </item>
         <item row="0" column="5">
          <widget class="QPushButton" name="search">
           <property name="text">
@@ -155,6 +145,65 @@
         </item>
        </layout>
       </widget>
+      <widget class="QWidget" name="tab_3">
+       <attribute name="title">
+        <string>Duplicates</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_4">
+        <item row="0" column="0">
+         <widget class="QTreeWidget" name="duplicates_result">
+          <property name="contextMenuPolicy">
+           <enum>Qt::ActionsContextMenu</enum>
+          </property>
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+          <property name="uniformRowHeights">
+           <bool>true</bool>
+          </property>
+          <property name="sortingEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="allColumnsShowFocus">
+           <bool>true</bool>
+          </property>
+          <column>
+           <property name="text">
+            <string>Title</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Size</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Date</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>CRC32</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>File Path</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Title Path</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+       </layout>
+      </widget>
       <widget class="QWidget" name="tab_2">
        <attribute name="title">
         <string>Update</string>
@@ -183,6 +232,16 @@
       </widget>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="QProgressBar" name="progress">
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="format">
+       <string>%v / %m</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -190,7 +249,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>672</width>
+     <width>774</width>
      <height>21</height>
     </rect>
    </property>
@@ -212,10 +271,16 @@
     </property>
     <addaction name="action_add_folder_to_storage"/>
     <addaction name="action_update_storage"/>
+   </widget>
+   <widget class="QMenu" name="menuFolder">
+    <property name="title">
+     <string>Folder</string>
+    </property>
     <addaction name="action_find_duplicates"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuStorage"/>
+   <addaction name="menuFolder"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
@@ -324,6 +389,14 @@
   <action name="action_delete_files">
    <property name="text">
     <string>Delete files</string>
+   </property>
+  </action>
+  <action name="action_search_from_clipboard">
+   <property name="text">
+    <string>Search from clipboard</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+V</string>
    </property>
   </action>
  </widget>
