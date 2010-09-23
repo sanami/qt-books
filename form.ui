@@ -250,7 +250,7 @@
      <x>0</x>
      <y>0</y>
      <width>774</width>
-     <height>21</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -270,6 +270,7 @@
      <string>Storage</string>
     </property>
     <addaction name="action_add_folder_to_storage"/>
+    <addaction name="action_find_duplicates_in_storage"/>
     <addaction name="action_update_storage"/>
    </widget>
    <widget class="QMenu" name="menuFolder">
@@ -307,8 +308,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="action_add_folder_to_storage"/>
-   <addaction name="action_update_storage"/>
-   <addaction name="action_find_duplicates"/>
+   <addaction name="action_find_duplicates_in_storage"/>
   </widget>
   <action name="action_save">
    <property name="icon">
@@ -397,6 +397,11 @@
    </property>
    <property name="shortcut">
     <string>Alt+V</string>
+   </property>
+  </action>
+  <action name="action_find_duplicates_in_storage">
+   <property name="text">
+    <string>Find Duplicates</string>
    </property>
   </action>
  </widget>

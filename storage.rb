@@ -29,6 +29,12 @@ class Storage
 	end
 
 	##
+	# Массовая обработка базы данных
+	def transaction 
+		Book.transaction { yield }
+	end
+
+	##
 	# Все записи из базы
 	def each
 		Book.all.each {|b| yield b }
@@ -38,6 +44,13 @@ class Storage
 	# Кол-во записей в базы
 	def size
 		Book.count
+	end
+
+	##
+	# Книги с одинаковым CRC32, после искать по размеру
+	def find_same_crc
+		books = Book.all :group => 'crc', :having => 'count(crc) > 1'
+		books
 	end
 
 	##
@@ -155,8 +168,16 @@ public
 		# Найти русский текст, не работает ignore case
 #	  find(['ред']).each { |b| pp b }
 
-		p Cache.column_names # Названия столбцов
-		p calculate_crc('./1/test/Основы программирования на C++ [Липпман].djvu')
+#		p Cache.column_names # Названия столбцов
+#		p calculate_crc('./1/test/Основы программирования на C++ [Липпман].djvu')
+
+#		books = Book.paginate :page => 1, :per_page => 5,
+#			:group => 'size', :having => 'count(size) > 1'
+
+#		books = Book.find_by_sql 'select * from books group by size having count(size) > 1'
+#		pp books.size
+		#pp books.first.attributes
+
 	end
 end
 

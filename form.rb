@@ -39,6 +39,7 @@ class Form < Qt::MainWindow
 	slots 'on_action_add_folder_to_storage_triggered()'
 	slots 'on_action_update_storage_triggered()'
 	slots 'on_action_find_duplicates_triggered()'
+	slots 'on_action_find_duplicates_in_storage_triggered()'
 	slots 'on_action_delete_files_triggered()'
 	slots 'on_action_search_from_clipboard_triggered()'
 	slots 'on_book_search()'
@@ -137,6 +138,12 @@ private
 
 		# Вставка из буфера
 	  addAction(@ui.action_search_from_clipboard)
+	end
+
+	##
+	# Запрос подтверждения
+	def confirm?(message)
+		Qt::MessageBox::question(self, "Confirm", message, Qt::MessageBox::Ok, Qt::MessageBox::Cancel) == Qt::MessageBox::Ok
 	end
 
 	##
@@ -369,8 +376,8 @@ private
 				  # obj - имя каталога
 				  update_progress
 			  elsif action == :duplicate_found
-				  # obj - дубликат
-			    show_book(@ui.duplicates_result, obj)
+				  # obj - [book, [duplicates]]
+			    show_duplicate(@ui.duplicates_result, obj[0], obj[1])
 			  else
 			    raise "Unknown action: #{action}"
 				end
@@ -384,10 +391,34 @@ private
 	end
 
 	##
+	# Найти повторы в базе
+	def on_action_find_duplicates_in_storage_triggered
+		return unless confirm? 'Find duplicates in storage'
+
+		status 'Find duplicates in storage'
+		@ui.duplicates_result.clear
+
+		@dup_finder.find_in_storage do |i, max_count, book, duplicates|
+			@ui.progress.setValue i
+			@ui.progress.setMaximum max_count
+
+			show_duplicate(@ui.duplicates_result, book, duplicates)
+
+			$qApp.processEvents
+		end		
+		
+		@ui.progress.reset
+		status 'OK'
+	end
+
+	##
 	# Обновить базу
 	def on_action_update_storage_triggered
-		status 'Update'
+		return unless confirm? 'Update storage'
+		status 'Update storage'
+		@ui.update_result.clear
 		@ui.progress.setMaximum @storage.size
+
 		@book_finder.update_storage do |i, action, book_title|
 			@ui.progress.setValue i
 
@@ -447,15 +478,7 @@ private
 	##
 	# Добавить информацию об одной книге в таблицу
 	def show_book(tree_widget, book)
-		size = book.size.to_s.align_right(12)
-		size.gsub!(/(.{3})/, ' \1')
-		columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
-		it = Qt::TreeWidgetItem.new(columns)
-		#it = BookItem.new(columns)
-		it.setTextAlignment(COLUMN_SIZE, Qt::AlignRight)
-		it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
-		it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book.size))
-
+	    it = create_tree_item(book)
 		file_item = tree_widget.findItems(book.file_path, Qt::MatchExactly, 3)
 		if file_item.empty?
 			tree_widget.addTopLevelItem it
@@ -478,16 +501,49 @@ private
 		end
 	end
 
+	# Добавить информацию об одной книге в таблицу
+	def show_duplicate(tree_widget, book, duplicates = [])
+	    it = create_tree_item book
+		tree_widget.addTopLevelItem it
+
+		duplicates.each do |book_dup|
+	    	dup_it = create_tree_item(book_dup)
+			it.addChild dup_it
+		end
+		it.setExpanded true
+	end
+
+	##
+	# Создать элемент для дерева
+	def create_tree_item(book)
+		size = book.size.to_s.align_right(12)
+		size.gsub!(/(.{3})/, ' \1')
+		columns = [book.title, size, book.last_modified.strftime('%Y-%m-%d %H:%M'), '%X' % book.crc, book.file_path, book.title_path]
+		it = Qt::TreeWidgetItem.new(columns)
+		#it = BookItem.new(columns)
+		it.setTextAlignment(COLUMN_SIZE, Qt::AlignRight)
+		it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
+		it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book.size))
+		it
+	end
+
 	##
 	# Удалить файлы выбранные в таблице результатов поиска
 	def on_action_delete_files_triggered
 		until (all = @ui.duplicates_result.selectedItems).empty?
 			it = all.first
 			file_path = it.text(COLUMN_FILE_PATH)
-			puts "deleted: #{file_path}"
-			File.delete to_win(file_path)
-			# Удалить из таблицы
-			it.dispose
+			begin
+				File.delete to_win(file_path)
+			rescue => ex
+				save_error ex
+				break
+				#TODO Переход на следующий элемент
+			else
+				puts "deleted: #{file_path}"
+				# Удалить из таблицы
+				it.dispose
+			end
 		end
 	end
 

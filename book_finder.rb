@@ -12,24 +12,29 @@ class BookFinder < FinderBase
 	##
 	# Обновить базу
 	def update_storage(max_count = -1, &gui_proc)
-		@storage.each_with_index do |book, i|
-			break if i == max_count
+		@storage.transaction do
+			@storage.each_with_index do |book, i|
+				break if i == max_count
+	
+				if File.exists?(to_win(book.file_path))
+					# Вычислить CRC32
+					if book.crc == 0
+						new_crc = @storage.calculate_crc(book.file_path)
+						if new_crc != 0
+							book.update_attribute(:crc, new_crc)
+						end
 
-			if File.exists?(to_win(book.file_path))
-				#Вычислить CRC32
-				if book.crc == 0
-					new_crc = @storage.calculate_crc(book.file_path)
-					if new_crc != 0
-						book.update_attribute(:crc, new_crc)
+						gui_proc.call(i, :crc, book.title) if gui_proc
 					end
-					gui_proc.call(i, :crc, book.title) if gui_proc
-				end
-			else
-				#TODO Удалить из базы
-				gui_proc.call(i, :delete, book.title) if gui_proc
-				next
-			end
+				else
+					# Удалить из базы
+					book.delete
 
+					gui_proc.call(i, :delete, book.title) if gui_proc
+					next
+				end
+	
+			end
 		end
 	end
 

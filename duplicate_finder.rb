@@ -9,6 +9,33 @@ class DuplicateFinder < FinderBase
 		@storage = storage
 	end
 
+	##
+	# Найти повторы в базе
+	def find_in_storage(max_count = -1, &gui_proc)
+		books = @storage.find_same_crc
+		max_count = books.size
+		books.each_with_index do |book, i|
+			break if i == max_count
+			
+			dups = @storage.find_duplicate(book).reject {|obj| obj == book }
+			gui_proc.call(i, max_count, book, dups) if gui_proc && !dups.empty?
+		end
+		#TODO дубликат может находится в архиве с другими файлами
+
+
+#		@storage.each_with_index do |book, i|
+#			break if i == max_count
+#
+#			dups = @storage.find_duplicate(book).reject {|obj| obj == book }
+#			#TODO найдёт также для каждого из dups
+#
+#			unless dups.empty?
+#				gui_proc.call(i, book, dups) if gui_proc
+#			end
+#
+#		end
+	end
+
 private
 	##
 	# Обработать этот файл?
@@ -46,7 +73,7 @@ private
 			unless duplicates.empty?
 				puts "\tfound duplicate id #{duplicates.first.id}"
 
-				gui_proc.call(:duplicate_found, book) if gui_proc
+				gui_proc.call(:duplicate_found, [book, duplicates]) if gui_proc
 #				File.delete to_win(book.file_path)
 				break
 			end
