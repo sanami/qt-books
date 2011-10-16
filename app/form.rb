@@ -45,6 +45,7 @@ class Form < Qt::MainWindow
 	slots 'on_book_search()'
 	slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 	slots 'on_duplicates_result_itemDoubleClicked(QTreeWidgetItem *, int)'
+	slots 'on_duplicates_result_currentItemChanged(QTreeWidgetItem *, QTreeWidgetItem *)'
 	slots 'on_search_next_page_clicked()'
 	slots 'on_search_prev_page_clicked()'
 
@@ -503,11 +504,11 @@ private
 
 	# Добавить информацию об одной книге в таблицу
 	def show_duplicate(tree_widget, book, duplicates = [])
-	    it = create_tree_item book
+		it = create_tree_item book
 		tree_widget.addTopLevelItem it
 
 		duplicates.each do |book_dup|
-	    	dup_it = create_tree_item(book_dup)
+			dup_it = create_tree_item(book_dup)
 			it.addChild dup_it
 		end
 		it.setExpanded true
@@ -570,4 +571,18 @@ private
 		url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
 		Qt::DesktopServices::openUrl(url);
 	end
+
+	##
+	# Список всех вложенных файлов
+  def on_duplicates_result_currentItemChanged(current, prev)
+	  @ui.file_content.clear
+	  if current
+	    file_path_utf8 = current.text(COLUMN_FILE_PATH)
+
+	    # Показать содержание файла
+		  @storage.file_content(file_path_utf8).each do |book|
+			  show_book(@ui.file_content, book)
+		  end
+		end
+  end
 end
