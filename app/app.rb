@@ -1,7 +1,7 @@
 # encoding: utf-8
 require 'optparse'
 #require 'finder.rb'
-#require 'storage.rb'
+require 'books.rb'
 
 class App
 
@@ -9,14 +9,10 @@ class App
 		parse_cmd_line
 
 		@settings = Settings.new(ROOT('config/settings.yaml'))
-		#@storage = Storage.new(ROOT('db/storage.yaml'))
-		#@finder = Finder.new @storage
+		@books = Books.new(ROOT('db/storage.yaml'))
 
-		#if @options.pics_path
-		#	@settings.current_dir = @options.pics_path
-		#else
-		#	@options.pics_path = @settings.current_dir || '.'
-		#end
+		#@book_finder = BookFinder.new @storage
+		#@dup_finder = DuplicateFinder.new @storage
 	end
 
 	##
@@ -31,8 +27,8 @@ class App
 				puts @cmd_line_opts
 		end
 
-		#@storage.save
-		#@settings.save
+		@books.save
+		@settings.save
 	end
 
 private
@@ -81,8 +77,8 @@ private
 
 		app = Qt::Application.new(ARGV)
 		Qt::init_codec
-#		form = Form.new @settings, @finder
-#		form.show
+		form = Form.new @settings, @books
+		form.show
 		app.exec
 		puts "app.exec done"
 	end

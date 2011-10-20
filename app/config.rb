@@ -48,5 +48,5 @@ end
 
 
 #$console_codec = 'ibm866' # Для работы из командной строки
-#$debug = true # Нет диалога закрытия
+$debug = true # Нет диалога закрытия
 #Qt.debug_level = Qt::DebugLevel::Minimal
