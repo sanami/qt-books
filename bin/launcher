@@ -1,0 +1,9 @@
+#!/bin/bash
+. rvm use 1.8.7
+
+#echo "$(dirname "$0")"
+#cd "$(dirname "$0")"
+
+#cd "/home/sa/projects/books/bin"
+#pwd
+ruby ../app/main.rb -m gui

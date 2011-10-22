@@ -1,6 +1,5 @@
 # encoding: utf-8
 require 'optparse'
-#require 'finder.rb'
 require 'books.rb'
 
 class App
@@ -10,9 +9,6 @@ class App
 
 		@settings = Settings.new(ROOT('config/settings.yaml'))
 		@books = Books.new(ROOT('db/storage.yaml'))
-
-		#@book_finder = BookFinder.new @storage
-		#@dup_finder = DuplicateFinder.new @storage
 	end
 
 	##
@@ -77,8 +73,7 @@ private
 
 		app = Qt::Application.new(ARGV)
 		Qt::init_codec
-		form = Form.new @settings, @books
-		form.show
+		Form.new @settings, @books
 		app.exec
 		puts "app.exec done"
 	end
