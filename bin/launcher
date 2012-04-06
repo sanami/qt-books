@@ -6,4 +6,4 @@
 
 #cd "/home/sa/projects/books/bin"
 #pwd
-ruby ../app/main.rb -m gui
+ruby ../lib/main.rb -m gui

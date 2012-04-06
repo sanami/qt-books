@@ -1,4 +1,3 @@
-require 'rubygems'
 require 'ostruct'
 require 'pp'
 require 'pathname'
@@ -18,7 +17,7 @@ end
 end
 
 # Required folders
-['app', 'app/db', 'lib'].each do |folder|
+['lib'].each do |folder|
   $: << ROOT(folder)
 end
 #pp $:
