@@ -1,4 +1,3 @@
-# encoding: utf-8
 require 'optparse'
 require 'books.rb'
 
@@ -23,7 +22,6 @@ class App
         puts @cmd_line_opts
     end
 
-    @books.save
     @settings.save
   end
 
@@ -60,10 +58,6 @@ private
   ##
   # Консольный режим
   def run_console
-    require 'storage.rb'
-
-    storage = Storage.new
-    #storage.to_yaml ROOT('db/storage.yaml')
   end
 
   ##
@@ -73,7 +67,8 @@ private
 
     app = Qt::Application.new(ARGV)
     Qt::init_codec
-    Form.new @settings, @books
+    form = Form.new @settings, @books
+    form.show
     app.exec
     puts "app.exec done"
   end

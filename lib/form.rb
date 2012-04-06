@@ -11,14 +11,14 @@ COLUMN_TITLE_PATH = 5
 
 SIZE_ROLE = Qt::UserRole + 1
 
-##
 # Главное окно приложения
 class Form < Qt::MainWindow
   slots 'on_action_quit_triggered()'
   slots 'on_action_new_triggered()'
   slots 'on_action_open_triggered()'
-  slots 'on_action_save_triggered()'
   slots 'on_action_save_as_triggered()'
+  slots 'on_action_add_folder_to_storage_triggered()'
+
   slots 'on_action_delete_files_triggered()'
   slots 'on_action_search_from_clipboard_triggered()'
   slots 'on_book_search()'
@@ -34,19 +34,10 @@ class Form < Qt::MainWindow
     @settings = settings
     load_settings
 
-    show
-    #dir = '/home/sa/Books'
-    #init_progress dir
-    #@storage.add_books dir do |action, file_path|
-    #  #pp file_path
-    #  update_progress
-    #  $qApp.processEvents
-    #end
-
+    status 'Ready'
   end
 
 protected
-  ##
   # Не должен быть private
   def closeEvent(e)
     unless $debug
@@ -64,12 +55,11 @@ protected
   end
 
 private
-  ##
   # Инициализация GUI
   def init_ui
     @ui = Ui::MainWindow.new
     @ui.setupUi(self)
-    Qt::optimize_layouts self
+    #Qt::optimize_layouts self
 
     resize(1000, 600)
     move(0, 0)
@@ -94,10 +84,6 @@ private
 #		statusBar.addPermanentWidget(ui.newsCount);
     statusBar.addPermanentWidget(@ui.progress)
 
-    init_actions
-  end
-
-  def init_actions
     # ESC сворачивает окно
     a = Qt::Action.new(self)
     a.setShortcut(Qt::KeySequence.new(Qt::Key_Escape))
@@ -114,19 +100,16 @@ private
     addAction(@ui.action_search_from_clipboard)
   end
 
-  ##
   # Запрос подтверждения
   def confirm?(message)
     Qt::MessageBox::question(self, "Confirm", message, Qt::MessageBox::Ok, Qt::MessageBox::Cancel) == Qt::MessageBox::Ok
   end
 
-  ##
-  # Сообщение в строке состояния
+  # Storage status
   def status(msg)
-    statusBar.showMessage msg
+    statusBar.showMessage "#{msg}. #{@storage.status_message}"
   end
 
-  ##
   # Загрузка и применение настроек
   def load_settings
     if @settings.form_geometry
@@ -134,27 +117,85 @@ private
     end
 
     #@ui.lineEdit.text = @settings.folder1
-    #@ui.lineEdit_2.text = @settings.folder2
-    #@ui.lineEdit_3.text = @settings.folder3
   end
 
-  ##
   # Сохранение настроек
   def save_settings
     @settings.form_geometry = self.saveGeometry.to_s
 
     #@settings.folder1 = @ui.lineEdit.text
-    #@settings.folder2 = @ui.lineEdit_2.text
-    #@settings.folder3 = @ui.lineEdit_3.text
   end
 
-  ##
   # Выйти из программы
   def on_action_quit_triggered
     $qApp.quit
   end
 
-  ##
+  # Reset storage
+  def on_action_new_triggered
+    @storage.clear
+    status 'Cleared'
+  end
+
+  # Add saved db to storage
+  def on_action_open_triggered
+    @settings.storage_dir ||= '.'
+    file_name = Qt::FileDialog::getOpenFileName(self, "Open File", @settings.storage_dir)
+    if file_name
+      @settings.storage_dir = File.dirname file_name
+      @storage.load(file_name)
+
+      status 'Loaded'
+    end
+  end
+
+  # Save storage to db file
+  def on_action_save_as_triggered
+    @settings.storage_dir ||= '.'
+    file_name = Qt::FileDialog::getSaveFileName(self, "Save File", @settings.storage_dir)
+    if file_name
+      @settings.storage_dir = File.dirname file_name
+      @storage.save(file_name)
+
+      status 'Saved'
+    end
+  end
+
+  # Add files from folder to storage
+  def on_action_add_folder_to_storage_triggered
+    @settings.scan_dir ||= '.'
+
+    dir = '/home/sa/Books'
+    dir_path = Qt::FileDialog::getExistingDirectory(self, "Open Dir", @settings.scan_dir)
+    if dir_path
+      @settings.scan_dir = dir_path
+      @storage.add_books(dir_path) do |action, file_path|
+        #pp file_path
+        update_progress
+        $qApp.processEvents
+      end
+
+      status 'Loaded'
+    end
+
+    init_progress dir
+  end
+
+  # Вставить текст из буфера в строку поиска
+  def on_action_search_from_clipboard_triggered
+    @ui.search_filter.setText(Qt::Application.clipboard.text)
+    @ui.search_filter.setFocus
+
+    # Сразу делать поиск
+    on_book_search
+  end
+
+  # Открыть документ или архив
+  def on_search_result_itemDoubleClicked(it, column)
+    url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
+    Qt::DesktopServices::openUrl(url);
+  end
+
   # Инициализировать прогресс бар
   def init_progress(dir_path)
     # Посчитать кол-во каталогов
@@ -172,13 +213,11 @@ private
     status "Total folders: #{dir_count}"
   end
 
-  ##
   # Обновить прогресс
   def update_progress
     @ui.progress.setValue(@ui.progress.value+1)
   end
 
-  ##
   # Поиск по фразе в строке поиска
   def on_book_search
     status 'Book search'
@@ -207,10 +246,9 @@ private
         show_book(@ui.search_result_old, book)
       end
     end
-    status 'OK'
+    status "Done: #{str}"
   end
 
-  ##
   # Добавить информацию об одной книге в таблицу
   def show_book(tree_widget, book)
     it = create_tree_item(book)
@@ -237,7 +275,6 @@ private
     end
   end
 
-  ##
   # Создать элемент для дерева
   def create_tree_item(book)
     size = book['size'].to_s.rjust(9)
@@ -250,23 +287,6 @@ private
     it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
     it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book['size']))
     it
-  end
-
-  ##
-  # Вставить текст из буфера в строку поиска
-  def on_action_search_from_clipboard_triggered
-    @ui.search_filter.setText(Qt::Application.clipboard.text)
-    @ui.search_filter.setFocus
-
-    # Сразу делать поиск
-    on_book_search
-  end
-
-  ##
-  # Открыть документ или архив
-  def on_search_result_itemDoubleClicked(it, column)
-    url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
-    Qt::DesktopServices::openUrl(url);
   end
 
 end

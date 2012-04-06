@@ -1,21 +1,27 @@
 require 'yaml'
 require 'process_dir.rb'
 
-##
-# Хранилище информации о файлах
+# Books storage
 class Books
-  attr_reader :files        # { file_path => file_info, .. }
-  attr_writer :is_changed
-  attr_reader :db_file
-  attr_reader :db_file_old
+  attr_reader :files
 
   def initialize(db_file, db_file_old)
     @books = []
     @books_old = []
-    @db_file = db_file
-    @db_file_old = db_file_old
-    @is_changed = false
-    load
+
+    # Load
+    load(db_file)
+    if File.exist? db_file_old
+      @books_old = YAML.load_file db_file_old
+    end
+  end
+
+  def clear
+    @books.clear
+  end
+
+  def status_message
+    "Books: #{@books.count}, Old books: #{@books_old.count}"
   end
 
   def find(patterns, in_new = true)
@@ -53,29 +59,15 @@ class Books
 
   end
 
-  def load
-    @is_changed = false
-    if File.exist? @db_file
-      @books = YAML.load_file @db_file
+  def load(file_name)
+    if File.exist? file_name
+      @books = YAML.load_file file_name
     end
-    if  File.exist? @db_file_old
-      @books_old = YAML.load_file @db_file_old
-    end
-    puts "Books.loaded: #{@books_old.count}"
-  rescue
-    @books_old = []
   end
 
-  def save
-    if @is_changed
-    File.open( @db_file, 'w' ) do |out|
-      YAML.dump( @books, out )
-    end
-
-    File.open( @db_file_old, 'w' ) do |out|
-        YAML.dump( @books_old, out )
-      end
-      puts "Books.saved: #{@books_old.count}"
+  def save(file_name)
+    File.open( file_name, 'w' ) do |f|
+      YAML.dump(@books, f)
     end
   end
 
