@@ -209,15 +209,19 @@ private
   end
 
   # Инициализировать прогресс бар
-  def init_progress(dir_path)
+  def init_progress(*dir_path_list)
     # Посчитать кол-во каталогов
     status 'Counting folders...'
-    @ui.progress.setMaximum 10000
+    @ui.progress.setMaximum 1000
     @ui.progress.setValue(0)
-    dir_count = process_dir(dir_path, :count) do |action, obj|
-      @ui.progress.setValue(@ui.progress.value+1)
 
-      $qApp.processEvents
+    dir_count = 0
+    dir_path_list.each do |dir_path|
+      dir_count += process_dir(dir_path, :count) do |action, obj|
+        @ui.progress.setValue(@ui.progress.value+1)
+
+        $qApp.processEvents
+      end
     end
 
     @ui.progress.setValue(0)
@@ -243,15 +247,22 @@ private
 
     live_folders = @ui.live_folders.toPlainText.split "\n"
     #pp live_folders
+    # Update subfolders count
+    init_progress(*live_folders)
 
     unless patterns.empty?
       # Результаты
-      books = @storage.find(patterns, true, live_folders)
+      books = @storage.find(patterns, true, live_folders) do |action, file_path|
+        #pp file_path
+        update_progress
+        $qApp.processEvents
+      end
 
       @ui.search_result.clear
       books.each do |book|
         #pp book
         show_book(@ui.search_result, book)
+        $qApp.processEvents
       end
 
       books = @storage.find(patterns, false)
@@ -260,6 +271,7 @@ private
       books.each do |book|
         #pp book
         show_book(@ui.search_result_old, book)
+        $qApp.processEvents
       end
     end
 

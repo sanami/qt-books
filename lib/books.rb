@@ -24,7 +24,7 @@ class Books
     "Books: #{@books.count}, Old books: #{@books_old.count}"
   end
 
-  def find(patterns, in_new = true, live_folders = [])
+  def find(patterns, in_new = true, live_folders = [], &gui_proc)
     all = []
     rx_pattern = /#{patterns.join('.+')}/i
     puts "Books.find #{rx_pattern}"
@@ -38,7 +38,7 @@ class Books
 
     # Find on disk
     live_folders.each do |folder|
-      find_in_folder(all, folder, rx_pattern)
+      find_in_folder(all, folder, rx_pattern, &gui_proc)
     end
 
     puts "\t#{all.size}"
@@ -46,11 +46,12 @@ class Books
   end
 
   # Search in folder
-  def find_in_folder(all, dir_path, rx_pattern)
+  def find_in_folder(all, dir_path, rx_pattern, &gui_proc)
     process_dir(dir_path, :list) do |action, file_path|
       case action
         when :list
           #pp file_path
+          gui_proc.call(:list, file_path)
 
         when :action
           file_name = File.basename(file_path)
