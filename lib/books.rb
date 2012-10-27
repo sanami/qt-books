@@ -1,11 +1,11 @@
-require 'yaml'
+#require 'yaml'
 require 'process_dir.rb'
 
 # Books storage
 class Books
   attr_reader :files
 
-  def initialize(db_file, db_file_old)
+  def initialize(db_file = '', db_file_old = '')
     @books = []
     @books_old = []
 
@@ -24,7 +24,7 @@ class Books
     "Books: #{@books.count}, Old books: #{@books_old.count}"
   end
 
-  def find(patterns, in_new = true)
+  def find(patterns, in_new = true, live_folders = [])
     all = []
     rx_pattern = /#{patterns.join('.+')}/i
     puts "Books.find #{rx_pattern}"
@@ -36,8 +36,34 @@ class Books
       end
     end
 
+    # Find on disk
+    live_folders.each do |folder|
+      find_in_folder(all, folder, rx_pattern)
+    end
+
     puts "\t#{all.size}"
     all
+  end
+
+  # Search in folder
+  def find_in_folder(all, dir_path, rx_pattern)
+    process_dir(dir_path, :list) do |action, file_path|
+      case action
+        when :list
+          #pp file_path
+
+        when :action
+          file_name = File.basename(file_path)
+          if file_name =~ rx_pattern
+            book = {}
+            book['title'] = file_name
+            book['size'] = File.size(file_path)
+            book['file_path'] = file_path
+
+            all << book
+          end
+      end
+    end
   end
 
   def add_books(dir_path, &gui_proc)

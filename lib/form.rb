@@ -24,6 +24,8 @@ class Form < Qt::MainWindow
   slots 'on_book_search()'
   slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 
+  slots 'on_search_filter_activate()'
+
   def initialize(settings, storage)
     super()
     init_ui
@@ -52,6 +54,17 @@ protected
     super
     puts "closeEvent"
     $qApp.quit
+  end
+
+  # Autofocus search field
+  def changeEvent(e)
+    if e.type == Qt::Event::ActivationChange
+      #pp "#changeEvent #{isActiveWindow}"
+      if isActiveWindow
+        on_search_filter_activate
+      end
+    end
+    super
   end
 
 private
@@ -93,7 +106,7 @@ private
     # CTRL+E фокус на строку поиска
     a = Qt::Action.new(self)
     a.setShortcut(Qt::KeySequence.new(Qt::Key_E + Qt::CTRL))
-    connect(a, SIGNAL('triggered()'), @ui.search_filter, SLOT('setFocus()'))
+    connect(a, SIGNAL('triggered()'), SLOT('on_search_filter_activate()'))
     addAction(a)
 
     # Вставка из буфера
@@ -116,14 +129,14 @@ private
       self.restoreGeometry Qt::ByteArray.new(@settings.form_geometry.to_s)
     end
 
-    #@ui.lineEdit.text = @settings.folder1
+    @ui.live_folders.setPlainText @settings.live_folders
   end
 
   # Сохранение настроек
   def save_settings
     @settings.form_geometry = self.saveGeometry.to_s
 
-    #@settings.folder1 = @ui.lineEdit.text
+    @settings.live_folders = @ui.live_folders.toPlainText
   end
 
   # Выйти из программы
@@ -165,10 +178,11 @@ private
   def on_action_add_folder_to_storage_triggered
     @settings.scan_dir ||= '.'
 
-    dir = '/home/sa/Books'
     dir_path = Qt::FileDialog::getExistingDirectory(self, "Open Dir", @settings.scan_dir)
     if dir_path
+      init_progress dir_path
       @settings.scan_dir = dir_path
+
       @storage.add_books(dir_path) do |action, file_path|
         #pp file_path
         update_progress
@@ -177,8 +191,6 @@ private
 
       status 'Loaded'
     end
-
-    init_progress dir
   end
 
   # Вставить текст из буфера в строку поиска
@@ -192,8 +204,8 @@ private
 
   # Открыть документ или архив
   def on_search_result_itemDoubleClicked(it, column)
-    url = Qt::Url.new("file:///" + it.text(COLUMN_FILE_PATH));
-    Qt::DesktopServices::openUrl(url);
+    url = Qt::Url.fromLocalFile(it.text(COLUMN_FILE_PATH))
+    Qt::DesktopServices::openUrl(url)
   end
 
   # Инициализировать прогресс бар
@@ -222,15 +234,19 @@ private
   def on_book_search
     status 'Book search'
 
-    str = @ui.search_filter.text
-    str.gsub!(/[^\w]/, ' ')
-    patterns = str.split(/[\s]+/).select {|word| word.length >= @ui.search_min_word.value }
-    str = patterns.join ' '
-    @ui.search_filter.setText str
+    search_str = @ui.search_filter.text
+    search_str.gsub!(/[^\w]/, ' ')
+    patterns = search_str.split(/[\s]+/).select {|word| word.length >= @ui.search_min_word.value }
+    search_str = patterns.join ' '
+    @ui.search_filter.setText search_str
+    @ui.search_filter.selectAll
+
+    live_folders = @ui.live_folders.toPlainText.split "\n"
+    #pp live_folders
 
     unless patterns.empty?
       # Результаты
-      books = @storage.find(patterns)
+      books = @storage.find(patterns, true, live_folders)
 
       @ui.search_result.clear
       books.each do |book|
@@ -246,7 +262,11 @@ private
         show_book(@ui.search_result_old, book)
       end
     end
-    status "Done: #{str}"
+
+    if @ui.search_result.topLevelItemCount == 0
+      Qt::TreeWidgetItem.new(@ui.search_result, ['not found', search_str])
+    end
+    status "Done: #{search_str}"
   end
 
   # Добавить информацию об одной книге в таблицу
@@ -287,6 +307,12 @@ private
     it.setTextAlignment(COLUMN_TIME, Qt::AlignCenter)
     it.setData(COLUMN_SIZE, SIZE_ROLE, Qt::Variant.new(book['size']))
     it
+  end
+
+  # Set focus and select text for replace by copy/paste
+  def on_search_filter_activate
+    @ui.search_filter.setFocus
+    @ui.search_filter.selectAll
   end
 
 end
