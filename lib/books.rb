@@ -86,6 +86,27 @@ class Books
 
   end
 
+  def fix_books(dir_path)
+    process_dir(dir_path, :list) do |action, file_path|
+      case action
+        when :list
+          #pp file_path
+          yield :list, file_path if block_given?
+
+        when :action
+          #pp file_path
+          file_name = File.basename(file_path)
+          new_name = file_name.gsub(':', '.').gsub(/\s{2,}/, ' ')
+          if file_name != new_name
+            puts "#{file_name} -> #{new_name}"
+
+            new_path = File.dirname(file_path) + '/' + new_name
+            FileUtils.mv file_path, new_path
+          end
+      end
+    end
+  end
+
   def load(file_name)
     if File.exist? file_name
       @books = YAML.load_file file_name

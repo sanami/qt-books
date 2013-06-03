@@ -16,5 +16,11 @@ describe Books do
     pp all
   end
 
+  it "should fix_books" do
+    folder = '/home/sa/Books/ruby'
+    subject.fix_books(folder)
+
+  end
+
 end
 

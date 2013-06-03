@@ -18,6 +18,7 @@ class Form < Qt::MainWindow
   slots 'on_action_open_triggered()'
   slots 'on_action_save_as_triggered()'
   slots 'on_action_add_folder_to_storage_triggered()'
+  slots 'on_action_fix_names_triggered()'
 
   slots 'on_action_delete_files_triggered()'
   slots 'on_action_search_from_clipboard_triggered()'
@@ -25,6 +26,7 @@ class Form < Qt::MainWindow
   slots 'on_search_result_itemDoubleClicked(QTreeWidgetItem *, int)'
 
   slots 'on_search_filter_activate()'
+
 
   def initialize(settings, storage)
     super()
@@ -193,6 +195,24 @@ private
     end
   end
 
+  # Fix file names
+  def on_action_fix_names_triggered
+    @settings.scan_dir ||= '.'
+
+    dir_path = Qt::FileDialog::getExistingDirectory(self, "Open Dir", @settings.scan_dir)
+    if dir_path
+      init_progress dir_path
+
+      @storage.fix_books(dir_path) do |action, file_path|
+        #pp file_path
+        update_progress
+        $qApp.processEvents
+      end
+
+      status 'Done'
+    end
+  end
+
   # Вставить текст из буфера в строку поиска
   def on_action_search_from_clipboard_triggered
     @ui.search_filter.setText(Qt::Application.clipboard.text)
@@ -239,6 +259,7 @@ private
     status 'Book search'
 
     search_str = @ui.search_filter.text
+    search_str.gsub!('_', ' ') # part of \w
     search_str.gsub!(/[^\w]/, ' ')
     patterns = search_str.split(/[\s]+/).select {|word| word.length >= @ui.search_min_word.value }
     search_str = patterns.join ' '

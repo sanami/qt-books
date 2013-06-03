@@ -211,6 +211,13 @@
     <addaction name="action_quit"/>
    </widget>
    <addaction name="menuStorage"/>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="action_fix_names"/>
+   </widget>
+   <addaction name="menuTools"/>
   </widget>
   <action name="action_save">
    <property name="icon">
@@ -294,6 +301,14 @@
   <action name="action_find_duplicates_in_storage">
    <property name="text">
     <string>Find Duplicates</string>
+   </property>
+  </action>
+  <action name="action_fix_names">
+   <property name="text">
+    <string>Fix file names..</string>
+   </property>
+   <property name="toolTip">
+    <string>Fix file names</string>
    </property>
   </action>
  </widget>
