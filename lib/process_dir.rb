@@ -5,7 +5,7 @@ require 'find'
 def process_dir(dir_path, action, &gui_proc)
   puts "process_dir #{dir_path}"
   dir_count = 0
-  Find.find(File.expand_path(dir_path)) do |file_path|
+  Dir.glob("#{File.expand_path(dir_path)}/**/*") do |file_path|
     case action
       when :count
         # Считать кол-во каталогов

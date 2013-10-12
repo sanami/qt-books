@@ -48,9 +48,9 @@ class Books
   # Search in folder
   def find_in_folder(all, dir_path, rx_pattern, &gui_proc)
     process_dir(dir_path, :list) do |action, file_path|
+      #pp file_path
       case action
         when :list
-          #pp file_path
           gui_proc.call(:list, file_path)
 
         when :action

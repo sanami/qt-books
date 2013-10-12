@@ -229,24 +229,32 @@ private
   end
 
   # Инициализировать прогресс бар
-  def init_progress(*dir_path_list)
-    # Посчитать кол-во каталогов
-    status 'Counting folders...'
-    @ui.progress.setMaximum 1000
-    @ui.progress.setValue(0)
+  def init_progress(dir_path_list, fast = false)
+    if fast
+      status ''
+      @ui.progress.setMaximum 1000
+      @ui.progress.setValue(0)
+    else
+      dir_path_list = [dir_path_list] unless dir_path_list.is_a?(Enumerable)
 
-    dir_count = 0
-    dir_path_list.each do |dir_path|
-      dir_count += process_dir(dir_path, :count) do |action, obj|
-        @ui.progress.setValue(@ui.progress.value+1)
+      # Посчитать кол-во каталогов
+      status 'Counting folders...'
+      @ui.progress.setMaximum 1000
+      @ui.progress.setValue(0)
 
-        $qApp.processEvents
+      dir_count = 0
+      dir_path_list.each do |dir_path|
+        dir_count += process_dir(dir_path, :count) do |action, obj|
+          @ui.progress.setValue(@ui.progress.value+1)
+
+          $qApp.processEvents
+        end
       end
-    end
 
-    @ui.progress.setValue(0)
-    @ui.progress.setMaximum dir_count
-    status "Total folders: #{dir_count}"
+      @ui.progress.setValue(0)
+      @ui.progress.setMaximum dir_count
+      status "Total folders: #{dir_count}"
+    end
   end
 
   # Обновить прогресс
@@ -269,7 +277,7 @@ private
     live_folders = @ui.live_folders.toPlainText.split "\n"
     #pp live_folders
     # Update subfolders count
-    init_progress(*live_folders)
+    init_progress(live_folders, true)
 
     unless patterns.empty?
       # Результаты

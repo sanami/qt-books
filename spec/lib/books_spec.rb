@@ -12,7 +12,9 @@ describe Books do
     all = []
     folder = '/home/sa/Books/ruby'
     rx_pattern = /best/i
-    subject.find_in_folder(all, folder, rx_pattern)
+    subject.find_in_folder(all, folder, rx_pattern) do |action, file_path|
+      pp action, file_path
+    end
     pp all
   end
 
